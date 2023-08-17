@@ -16,29 +16,153 @@
 #include <stdlib.h>
 #include <string.h>
 
+static MunitResult test_dump2str_fail(
+    const MunitParameter params[], void* data
+) {
+    lua_State *lua = luaL_newstate();
+    luaL_openlibs(lua);
+
+    const char *code =  "return { &&&% }\n";
+
+    luaL_loadstring(lua, code);
+    /*printf("[%s]\n", stack_dump(lua));*/
+    lua_call(lua, 0, LUA_MULTRET);
+    /*printf("[%s]\n", stack_dump(lua));*/
+
+    char *dump = table_dump2allocated_str(lua);
+    /*char *dump = "XXX";*/
+    lua_close(lua);
+    if (!dump) {
+        return MUNIT_FAIL;
+    }
+
+    /*
+    {
+        lua_State *l = luaL_newstate();
+        luaL_openlibs(l);
+        luaL_loadstring(l, dump);
+        lua_call(l, 0, 1);
+
+        {
+            lua_pushstring(l, "f");
+            munit_assert(lua_gettable(l, -2) == LUA_TTABLE);
+
+            for (int i = 1; i <= 3; i++) {
+                munit_assert(lua_geti(l, -1, i) == LUA_TNUMBER);
+                double n = lua_tonumber(l, -1);
+                munit_assert(n == i);
+                lua_remove(l, -1);
+            }
+
+            lua_remove(l, -1);
+        }
+
+        {
+            lua_pushstring(l, "a");
+            munit_assert(lua_gettable(l, -2) == LUA_TTABLE);
+
+            const char *values[] = { "her", "var", "par", NULL };
+            char **pvalue = (char**)values;
+
+            lua_pushnil(l);
+            while (lua_next(l, -2)) {
+                munit_assert(lua_type(l, -1) == LUA_TSTRING);
+
+                if (!pvalue) {
+                    free(dump);
+                    lua_close(l);
+                    return MUNIT_FAIL;
+                }
+
+                munit_assert(!strcmp(*pvalue, lua_tostring(l, -1)));
+                pvalue++;
+                lua_remove(l, -1);
+            }
+        }
+
+        lua_close(l);
+    }
+    */
+
+    free(dump);
+
+    return MUNIT_OK;
+}
+
 static MunitResult test_dump2str(
     const MunitParameter params[], void* data
 ) {
     lua_State *lua = luaL_newstate();
+    luaL_openlibs(lua);
 
-    if (!luaL_dostring(lua,  "return {\n"
+    const char *code =  "return {\n"
                         "   f = {\n"
                         "       1, 2, 3\n"
                         "   },\n"
                         "   a = {\n"
-                        "       'her', 'var', par\n"
+                        "       'her', 'var', 'par'\n"
                         "   },\n"
-                        "}\n"
-    )) {
-        printf(
-            "test_dump2str: couldnot dostring with '%s'\n",
-            lua_tostring(lua, -1)
-        );
-    }
-    printf("test_dump2str: [%s]\n", stack_dump(lua));
+                        "}\n";
 
-    //char *table_dump2allocated_str(lua_State *l);
+	luaL_loadstring(lua, code);
+    lua_call(lua, 0, LUA_MULTRET);
+
+    char *dump = table_dump2allocated_str(lua);
     lua_close(lua);
+    if (!dump) {
+        return MUNIT_FAIL;
+    }
+
+    {
+        lua_State *l = luaL_newstate();
+        luaL_openlibs(l);
+        luaL_loadstring(l, dump);
+        /*printf("[%s]\n", stack_dump(l));*/
+        lua_call(l, 0, 1);
+        /*printf("[%s]\n", stack_dump(l));*/
+
+        {
+            lua_pushstring(l, "f");
+            munit_assert(lua_gettable(l, -2) == LUA_TTABLE);
+
+            for (int i = 1; i <= 3; i++) {
+                munit_assert(lua_geti(l, -1, i) == LUA_TNUMBER);
+                double n = lua_tonumber(l, -1);
+                munit_assert(n == i);
+                lua_remove(l, -1);
+            }
+
+            lua_remove(l, -1);
+        }
+
+        {
+            lua_pushstring(l, "a");
+            munit_assert(lua_gettable(l, -2) == LUA_TTABLE);
+
+            const char *values[] = { "her", "var", "par", NULL };
+            char **pvalue = (char**)values;
+
+            lua_pushnil(l);
+            while (lua_next(l, -2)) {
+                /*printf("[%s]\n", stack_dump(l));*/
+                munit_assert(lua_type(l, -1) == LUA_TSTRING);
+
+                if (!pvalue) {
+                    free(dump);
+                    lua_close(l);
+                    return MUNIT_FAIL;
+                }
+
+                munit_assert(!strcmp(*pvalue, lua_tostring(l, -1)));
+                pvalue++;
+                lua_remove(l, -1);
+            }
+        }
+
+        lua_close(l);
+    }
+
+    free(dump);
 
     return MUNIT_OK;
 }
@@ -136,6 +260,11 @@ static MunitTest test_suite_tests[] = {
   {
     (char*) "/table_printing",
     test_table_printing,
+    NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL
+  },
+  {
+    (char*) "/dump2str_fail",
+    test_dump2str_fail,
     NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL
   },
   {
