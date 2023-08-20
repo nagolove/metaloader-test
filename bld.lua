@@ -1,7 +1,7 @@
 return {
     {
-       artifact = "lua_tools_test",
-       main = "lua_tools_test.c",
+       artifact = "metaloader_test",
+       main = "metaloader_test.c",
        src = "src",
     },
 }
