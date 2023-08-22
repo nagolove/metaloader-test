@@ -34,149 +34,120 @@ struct MetaObject {
     char        name[128];
 };
 
-// Возвращает указатель требующий вызова free()
-static struct MetaObject *load_rects(
-    const char *fname, int *objects_num
-) {
-    assert(fname);
-    assert(objects_num);
-
-    if (!objects_num) {
-        printf("objects_num should not be a NULL\n");
-        exit(EXIT_FAILURE);
-    }
-    *objects_num = 0;
-
-    int capacity = 10;
-    struct MetaObject *objects = calloc(capacity, sizeof(objects[0]));
-    lua_State *l = luaL_newstate();
-    luaL_openlibs(l);
-    munit_assert_true(luaL_dofile(l, fname) == LUA_OK);
-    //printf("load_rect: %s\n", stack_dump(l));
-
-    /* {{{
-    lua stack:
-    nil, table, string, bool, function, number
-
-    [1.]
-    [1., 0., ]
-    [1., 0., "D"]
-    }}} */
-
-    munit_assert(lua_type(l, -1) == LUA_TTABLE);
-    munit_assert(lua_gettop(l));
-
-    lua_pushnil(l);
-    while (lua_next(l, 1)) {
-        /*
-        trace(
-            "load_rects: %s - %s\n",
-            lua_tostring(l, -2),
-            lua_tostring(l, -1)
-        );
-        */
-        struct MetaObject object = {};
-        const char *id = lua_tostring(l, -2);
-        if (!id)
-            goto _next;
-        strncpy(object.name, id, sizeof(object.name));
-
-        //trace("[%s]\n", stack_dump(l));
-        lua_pushnil(l);
-        //trace("[%s]\n", stack_dump(l));
-        //printf("gettop() %d\n", lua_gettop(l) - 1);
-        int i = 0;
-        float values[4] = {};
-        while (lua_next(l, lua_gettop(l) - 1)) {
-            //printf("%f ", lua_tonumber(l, -2));
-            //printf("%f ", lua_tonumber(l, -1));
-            if (i < 4)
-                values[i] = lua_tonumber(l, -1);
-            i++;
-            lua_pop(l, 1);
-        }
-        printf("\n");
-
-        object.rect = rect_from_arr(values);
-
-        if (*objects_num + 1 == capacity) {
-            capacity += 1;
-            capacity *= 2;
-            void *new_mem = realloc(objects, sizeof(objects[0]) * capacity);
-            if (!new_mem) {
-                printf("bad with realloc()\n");
-                exit(EXIT_FAILURE);
-            }
-            assert(new_mem);
-            objects = new_mem;
-        }
-
-        objects[(*objects_num)++] = object;
-        
-_next:  
-        lua_pop(l, 1);
-    }
-    // */
-
-    lua_close(l);
-    return objects;
-}
-
-static koh_Set *get_control_objects(const char *fname) {
-    int objects_num = 0;
-    struct MetaObject *objects = load_rects(fname, &objects_num);
+static koh_Set *control_set_alloc(struct MetaLoaderObjects objs) {
     koh_Set *set_control = set_new();
     assert(set_control);
 
-    for (int i = 0; i < objects_num; ++i) {
-        /*
-        printf(
-                "object '%s', %s\n",
-                objects[i].name,
-                rect2str(objects[i].rect)
-              );
-        */
-        set_add(set_control, &objects[i], sizeof(objects[0]));
+    for (int i = 0; i < objs.num; ++i) {
+        struct MetaObject mobject = {};
+        strncpy(mobject.name, objs.names[i], sizeof(mobject.name));
+        mobject.rect = objs.rects[i];
+        printf("mobject '%s', %s\n", mobject.name, rect2str(mobject.rect));
+        set_add(set_control, &mobject, sizeof(mobject));
     }
-
-    if (objects)
-        free(objects);
 
     return set_control;
 }
 
-static MunitResult test_load(
-    const MunitParameter params[], void* data
-) {
-    const char *example_fname = "example.lua";
+static koh_Set *meta_set_alloc(const char *fname, const char *luacode) {
     MetaLoader *ml = metaloader_new();
-    munit_assert_true(metaloader_load(ml, example_fname));
+    munit_assert(ml != NULL);
+    munit_assert_true(metaloader_load_s(ml, fname, luacode));
 
-    struct MetaLoaderObjects objects = metaloader_objects_get(
-        ml, extract_filename(example_fname, ".lua")
-    );
+    const char *fname_noext = extract_filename(fname, ".lua");
+    struct MetaLoaderObjects objects = metaloader_objects_get(ml, fname_noext);
 
     koh_Set *set_meta = set_new();
     for (int j = 0; j < objects.num; ++j) {
         struct MetaObject mobject = {};
         if (objects.names[j])
             strncpy(mobject.name, objects.names[j], sizeof(mobject.name));
+        //objects.rects[j].x += 0.00000000000000000001;
+        //objects.rects[j].x += 0.01;
         mobject.rect = objects.rects[j];
         set_add(set_meta, &mobject, sizeof(mobject));
-
         printf("mobject '%s', %s\n", mobject.name, rect2str(mobject.rect));
     }
-    /*metaloader_objects_shutdown(&objects);*/
+    metaloader_objects_shutdown(&objects);
     metaloader_free(ml);
+    return set_meta;
+}
 
-    koh_Set *set_control = get_control_objects(example_fname);
+static void load_s(
+    const char *fname_noext,
+    const char *luacode,
+    struct MetaLoaderObjects control_objects
+) {
+    koh_Set *set_meta = meta_set_alloc(fname_noext, luacode);
+    koh_Set *set_control = control_set_alloc(control_objects);
+    munit_assert_true(set_compare(set_control, set_meta));
     if (set_control)
         set_free(set_control);
-
     if (set_meta)
         set_free(set_meta);
+}
 
-    //munit_assert_true(set_compare(set_control, set_meta));
+static MunitResult test_load(
+    const MunitParameter params[], void* data
+) {
+
+    load_s(
+        "example.lua", 
+
+        "return {\n"
+        "    -- return x, y, width, height\n"
+        "    wheel1 = { 0, 0, 100, 100, },\n"
+        "    mine = { 2156, 264, 407, 418 },\n"
+        "    wheel2 = { 2, 20, 43, 43, },\n"
+        "    wheel3 = { 2000, 20, 43, 43, },\n"
+        "    wheel4 = { -20, 20, 43, 43, },\n"
+        "    wheel5 = { 0, 0, 0, 0},\n"
+        "}\n",
+
+        (struct MetaLoaderObjects) {
+            .names = { 
+                "wheel1", "mine"  , "wheel2", "wheel3", "wheel4", "wheel5", 
+            },
+            .rects = {
+                { 0, 0, 100, 100, },
+                { 2156, 264, 407, 418 },
+                { 2, 20, 43, 43, },
+                { 2000, 20, 43, 43, },
+                { -20, 20, 43, 43, },
+                { 0, 0, 0, 0},
+            },
+            .num = 6,
+        }
+    );
+
+    load_s(
+        "example.lua", 
+
+        "return {\n"
+        "    -- return x, y, width, height\n"
+        "    wheel1 = { 0, 0, 100, 100, },\n"
+        "    mine = { 2156, 264, 407, 418 },\n"
+        "    wheel2 = { 2, 20, 43, 43, },\n"
+        "    wheel3 = { 2000, 20, 43, 43, },\n"
+        "    wheel4 = { -20, 20, 43, 43, },\n"
+        "    wheel5 = { 0, 0, 0, 0},\n"
+        "}\n",
+
+        (struct MetaLoaderObjects) {
+            .names = { 
+                "wheel1", "mine"  , "wheel2", "wheel3", "wheel4", "wheel5", 
+            },
+            .rects = {
+                { 0, 0, 100, 100, },
+                { 2156, 264, 407, 418 },
+                { 2, 20, 43, 43, },
+                { 2000, 20, 43, 43, },
+                { -20, 20, 43, 43, },
+                { 0, 0, 0, 0},
+            },
+            .num = 6,
+        }
+    );
 
     return MUNIT_OK;
 }
