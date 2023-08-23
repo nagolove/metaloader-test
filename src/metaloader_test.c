@@ -42,9 +42,13 @@ static koh_Set *control_set_alloc(struct MetaLoaderObjects objs) {
         struct MetaObject mobject = {};
         strncpy(mobject.name, objs.names[i], sizeof(mobject.name));
         mobject.rect = objs.rects[i];
-        printf("mobject '%s', %s\n", mobject.name, rect2str(mobject.rect));
+        printf(
+            "control_set_alloc: mobject '%s', %s\n",
+            mobject.name, rect2str(mobject.rect)
+        );
         set_add(set_control, &mobject, sizeof(mobject));
     }
+    printf("control_set_alloc: objs.num %d\n", objs.num);
 
     return set_control;
 }
@@ -62,12 +66,17 @@ static koh_Set *meta_set_alloc(const char *fname, const char *luacode) {
         struct MetaObject mobject = {};
         if (objects.names[j])
             strncpy(mobject.name, objects.names[j], sizeof(mobject.name));
+        //mobject.name[1] = 's';
         //objects.rects[j].x += 0.00000000000000000001;
         //objects.rects[j].x += 0.01;
         mobject.rect = objects.rects[j];
         set_add(set_meta, &mobject, sizeof(mobject));
-        printf("mobject '%s', %s\n", mobject.name, rect2str(mobject.rect));
+        printf(
+            "meta_set_alloc: mobject '%s', %s\n",
+            mobject.name, rect2str(mobject.rect)
+        );
     }
+    printf("control_set_alloc: objs.num %d\n", objects.num);
     metaloader_objects_shutdown(&objects);
     metaloader_free(ml);
     return set_meta;
@@ -87,10 +96,63 @@ static void load_s(
         set_free(set_meta);
 }
 
-static MunitResult test_load(
+static MunitResult test_load_arr(
     const MunitParameter params[], void* data
 ) {
+    load_s(
+        "example.lua", 
 
+        "return {\n"
+        "    1, 2,\n"
+        "}\n",
+
+        (struct MetaLoaderObjects) {
+            .names = {},
+            .rects = {},
+            .num = 0,
+        }
+    );
+    return MUNIT_OK;
+}
+
+static MunitResult test_load_mixed(
+    const MunitParameter params[], void* data
+) {
+    load_s(
+        "example.lua", 
+
+        "return {\n"
+        "    -- return x, y, width, height\n"
+        "    wheel1 = { 0, 0, 100, 100, },\n"
+        "    1, 2,\n"
+        "    mine = { 2156, 264, 407, 418 },\n"
+        "    wheel2 = { 2, 20, 43, 43, },\n"
+        "    wheel3 = { 2000, 20, 43, 43, },\n"
+        "    wheel4 = { -20, 20, 43, 43, },\n"
+        "    wheel5 = { 0, 0, 0, 0},\n"
+        "}\n",
+
+        (struct MetaLoaderObjects) {
+            .names = { 
+                "wheel1", "mine"  , "wheel2", "wheel3", "wheel4", "wheel5", 
+            },
+            .rects = {
+                { 0, 0, 100, 100, },
+                { 2156, 264, 407, 418 },
+                { 2, 20, 43, 43, },
+                { 2000, 20, 43, 43, },
+                { -20, 20, 43, 43, },
+                { 0, 0, 0, 0},
+            },
+            .num = 6,
+        }
+    );
+    return MUNIT_OK;
+}
+
+static MunitResult test_load_normal(
+    const MunitParameter params[], void* data
+) {
     load_s(
         "example.lua", 
 
@@ -119,33 +181,47 @@ static MunitResult test_load(
             .num = 6,
         }
     );
+    return MUNIT_OK;
+}
 
+static MunitResult test_load_empty(
+    const MunitParameter params[], void* data
+) {
     load_s(
         "example.lua", 
 
         "return {\n"
-        "    -- return x, y, width, height\n"
-        "    wheel1 = { 0, 0, 100, 100, },\n"
-        "    mine = { 2156, 264, 407, 418 },\n"
-        "    wheel2 = { 2, 20, 43, 43, },\n"
-        "    wheel3 = { 2000, 20, 43, 43, },\n"
-        "    wheel4 = { -20, 20, 43, 43, },\n"
-        "    wheel5 = { 0, 0, 0, 0},\n"
         "}\n",
 
         (struct MetaLoaderObjects) {
-            .names = { 
-                "wheel1", "mine"  , "wheel2", "wheel3", "wheel4", "wheel5", 
-            },
+            .names = {},
+            .rects = {},
+            .num = 0,
+        }
+    );
+    return MUNIT_OK;
+}
+
+static MunitResult test_load_empty_sub(
+    const MunitParameter params[], void* data
+) {
+    load_s(
+        "example.lua", 
+
+        "return {\n"
+        "xx = {},\n"
+        //"xx = { 0, 0, 0, 0},\n"
+        "A = { 0, 0, 100, 100},\n"
+        "xyx = {},\n"
+        //"xyx = { 0, 0, 0, 0},\n"
+        "}\n",
+
+        (struct MetaLoaderObjects) {
+            .names = { "A", },
             .rects = {
-                { 0, 0, 100, 100, },
-                { 2156, 264, 407, 418 },
-                { 2, 20, 43, 43, },
-                { 2000, 20, 43, 43, },
-                { -20, 20, 43, 43, },
-                { 0, 0, 0, 0},
+                { 0., 0., 100., 100. },
             },
-            .num = 6,
+            .num = 1,
         }
     );
 
@@ -154,15 +230,40 @@ static MunitResult test_load(
 
 static MunitTest test_suite_tests[] = {
     {
-        (char*) "/metaloader_new_free",
+        (char*) "/new_free",
         test_new_free,
         NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL
     },
+
     {
-        (char*) "/metaloader_load",
-        test_load,
+        (char*) "/load_normal",
+        test_load_normal,
         NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL
     },
+    {
+        (char*) "/load_empty_sub",
+        test_load_empty_sub,
+        NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL
+    },
+
+    {
+        (char*) "/load_empty",
+        test_load_empty,
+        NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL
+    },
+
+    {
+        (char*) "/load_arr",
+        test_load_arr,
+        NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL
+    },
+
+    {
+        (char*) "/load_mixed",
+        test_load_mixed,
+        NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL
+    },
+
     { NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL }
 };
 
