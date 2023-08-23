@@ -5,6 +5,7 @@
 #include "koh_common.h"
 #include "koh_lua_tools.h"
 #include "koh_metaloader.h"
+#include "koh_routine.h"
 #include "koh_set.h"
 #include "lauxlib.h"
 #include "lua.h"
@@ -82,6 +83,48 @@ static koh_Set *meta_set_alloc(const char *fname, const char *luacode) {
     return set_meta;
 }
 
+static koh_Set *meta_set_alloc_f(const char *fname) {
+    MetaLoader *ml = metaloader_new();
+    munit_assert(ml != NULL);
+    munit_assert_true(metaloader_load_f(ml, fname));
+
+    const char *fname_noext = extract_filename(fname, ".lua");
+    struct MetaLoaderObjects objects = metaloader_objects_get(ml, fname_noext);
+
+    koh_Set *set_meta = set_new();
+    for (int j = 0; j < objects.num; ++j) {
+        struct MetaObject mobject = {};
+        if (objects.names[j])
+            strncpy(mobject.name, objects.names[j], sizeof(mobject.name));
+        //mobject.name[1] = 's';
+        //objects.rects[j].x += 0.00000000000000000001;
+        //objects.rects[j].x += 0.01;
+        mobject.rect = objects.rects[j];
+        set_add(set_meta, &mobject, sizeof(mobject));
+        printf(
+            "meta_set_alloc: mobject '%s', %s\n",
+            mobject.name, rect2str(mobject.rect)
+        );
+    }
+    printf("control_set_alloc: objs.num %d\n", objects.num);
+    metaloader_objects_shutdown(&objects);
+    metaloader_free(ml);
+    return set_meta;
+}
+
+static void load_f(
+    const char *fname,
+    struct MetaLoaderObjects control_objects
+) {
+    koh_Set *set_meta = meta_set_alloc_f(fname);
+    koh_Set *set_control = control_set_alloc(control_objects);
+    munit_assert_true(set_compare(set_control, set_meta));
+    if (set_control)
+        set_free(set_control);
+    if (set_meta)
+        set_free(set_meta);
+}
+
 static void load_s(
     const char *fname_noext,
     const char *luacode,
@@ -110,6 +153,29 @@ static MunitResult test_load_arr(
             .names = {},
             .rects = {},
             .num = 0,
+        }
+    );
+    return MUNIT_OK;
+}
+
+static MunitResult test_load_f(
+    const MunitParameter params[], void* data
+) {
+    load_f(
+        "example.lua", 
+        (struct MetaLoaderObjects) {
+            .names = { 
+                "wheel1", "mine"  , "wheel2", "wheel3", "wheel4", "wheel5", 
+            },
+            .rects = {
+                { 0, 0, 100, 100, },
+                { 2156, 264, 407, 418 },
+                { 2, 20, 43, 43, },
+                { 2000, 20, 43, 43, },
+                { -20, 20, 43, 43, },
+                { 0, 0, 0, 0},
+            },
+            .num = 6,
         }
     );
     return MUNIT_OK;
@@ -147,6 +213,51 @@ static MunitResult test_load_mixed(
             .num = 6,
         }
     );
+    return MUNIT_OK;
+}
+
+static MunitResult test_get(
+    const MunitParameter params[], void* data
+) {
+    const char *fname = "example.lua";
+    const char *fname_only_name = "example";
+    const char *luacode = 
+        "return {\n"
+        "    -- return x, y, width, height\n"
+        "    wheel1 = { 0, 0, 100, 100, },\n"
+        "    mine = { 2156, 264, 407, 418 },\n"
+        "    wheel2 = { 2, 20, 43, 43, },\n"
+        "    wheel3 = { 2000, 20, 43, 43, },\n"
+        "    wheel4 = { -20, 20, 43, 43, },\n"
+        "    wheel5 = { 0, 0, 0, 0},\n"
+        "}\n";
+    struct MetaLoaderObjects objects_control = {
+        .names = { 
+            "wheel1", "mine"  , "wheel2", "wheel3", "wheel4", "wheel5", 
+        },
+        .rects = {
+            { 0, 0, 100, 100, },
+            { 2156, 264, 407, 418 },
+            { 2, 20, 43, 43, },
+            { 2000, 20, 43, 43, },
+            { -20, 20, 43, 43, },
+            { 0, 0, 0, 0},
+        },
+        .num = 6,
+    };
+
+    struct MetaLoader *ml = metaloader_new();
+    const char *fname_noext = extract_filename(fname, ".lua");
+    munit_assert_string_equal(fname_noext, fname_only_name);
+    munit_assert_true(metaloader_load_s(ml, fname, luacode));
+    for (int k = 0; k < objects_control.num; ++k) {
+        Rectangle *rect = metaloader_get_fmt(
+            ml, fname_noext, "%s", objects_control.names[k]
+        );
+        munit_assert_ptr_not_null(rect);
+        munit_assert(rect_cmp_hard(*rect, objects_control.rects[k]));
+    }
+    metaloader_free(ml);
     return MUNIT_OK;
 }
 
@@ -240,6 +351,13 @@ static MunitTest test_suite_tests[] = {
         test_load_normal,
         NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL
     },
+
+    {
+        (char*) "/get",
+        test_get,
+        NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL
+    },
+
     {
         (char*) "/load_empty_sub",
         test_load_empty_sub,
@@ -261,6 +379,12 @@ static MunitTest test_suite_tests[] = {
     {
         (char*) "/load_mixed",
         test_load_mixed,
+        NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL
+    },
+
+    {
+        (char*) "/load_f",
+        test_load_f,
         NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL
     },
 
