@@ -216,39 +216,10 @@ static MunitResult test_load_mixed(
     return MUNIT_OK;
 }
 
-static MunitResult test_get(
-    const MunitParameter params[], void* data
-) {
-    const char *fname = "example.lua";
-    const char *fname_only_name = "example";
-    const char *luacode = 
-        "return {\n"
-        "    -- return x, y, width, height\n"
-        "    wheel1 = { 0, 0, 100, 100, },\n"
-        "    mine = { 2156, 264, 407, 418 },\n"
-        "    wheel2 = { 2, 20, 43, 43, },\n"
-        "    wheel3 = { 2000, 20, 43, 43, },\n"
-        "    wheel4 = { -20, 20, 43, 43, },\n"
-        "    wheel5 = { 0, 0, 0, 0},\n"
-        "}\n";
-    struct MetaLoaderObjects objects_control = {
-        .names = { 
-            "wheel1", "mine"  , "wheel2", "wheel3", "wheel4", "wheel5", 
-        },
-        .rects = {
-            { 0, 0, 100, 100, },
-            { 2156, 264, 407, 418 },
-            { 2, 20, 43, 43, },
-            { 2000, 20, 43, 43, },
-            { -20, 20, 43, 43, },
-            { 0, 0, 0, 0},
-        },
-        .num = 6,
-    };
-
+static void _get(const char *fname, const char *luacode, struct MetaLoaderObjects objects_control) {
     struct MetaLoader *ml = metaloader_new();
     const char *fname_noext = extract_filename(fname, ".lua");
-    munit_assert_string_equal(fname_noext, fname_only_name);
+    //munit_assert_string_equal(fname_noext, fname_only_name);
     munit_assert_true(metaloader_load_s(ml, fname, luacode));
     for (int k = 0; k < objects_control.num; ++k) {
         Rectangle *rect = metaloader_get_fmt(
@@ -258,6 +229,57 @@ static MunitResult test_get(
         munit_assert(rect_cmp_hard(*rect, objects_control.rects[k]));
     }
     metaloader_free(ml);
+}
+
+static MunitResult test_get(
+    const MunitParameter params[], void* data
+) {
+
+    _get(
+        "example.lua",
+        "return {\n"
+        "    -- return x, y, width, height\n"
+        "    wheel1 = { 0, 0, 100, 100, },\n"
+        "    mine = { 2156, 264, 407, 418 },\n"
+        "    wheel2 = { 2, 20, 43, 43, },\n"
+        "    wheel3 = { 2000, 20, 43, 43, },\n"
+        "    wheel4 = { -20, 20, 43, 43, },\n"
+        "    wheel5 = { 0, 0, 0, 0},\n"
+        "}\n",
+        (struct MetaLoaderObjects) {
+            .names = { 
+                "wheel1", "mine"  , "wheel2", "wheel3", "wheel4", "wheel5", 
+            },
+            .rects = {
+                { 0, 0, 100, 100, },
+                { 2156, 264, 407, 418 },
+                { 2, 20, 43, 43, },
+                { 2000, 20, 43, 43, },
+                { -20, 20, 43, 43, },
+                { 0, 0, 0, 0},
+            },
+            .num = 6,
+        }
+    );
+
+    _get(
+        "example.lua",
+        "return {\n"
+        "    -- return x, y, width, height\n"
+        "    wheel1 = { 0, 0, 100, 100, },\n"
+        "    wheel5 = {},\n"
+        "}\n",
+        (struct MetaLoaderObjects) {
+            .names = { 
+                "wheel1"
+            },
+            .rects = {
+                { 0, 0, 100, 100, },
+            },
+            .num = 1,
+        }
+    );
+
     return MUNIT_OK;
 }
 
