@@ -3,10 +3,7 @@
 
 #include "koh.h"
 #include "koh_common.h"
-#include "koh_lua_tools.h"
 #include "koh_metaloader.h"
-#include "koh_routine.h"
-#include "koh_set.h"
 #include "lauxlib.h"
 #include "lua.h"
 #include "lualib.h"
@@ -157,6 +154,52 @@ static MunitResult test_load_arr(
     );
     return MUNIT_OK;
 }
+
+static MunitResult test_load_f_typed(
+    const MunitParameter params[], void* data
+) {
+    /*
+    // {{{
+    load_f(
+        "example.lua", 
+        (struct MetaLoaderObjects) {
+            .names = { 
+                "wheel1", "mine"  , "wheel2", "wheel3", "wheel4", "wheel5", 
+            },
+            .rects = {
+                { 0, 0, 100, 100, },
+                { 2156, 264, 407, 418 },
+                { 2, 20, 43, 43, },
+                { 2000, 20, 43, 43, },
+                { -20, 20, 43, 43, },
+                { 0, 0, 0, 0},
+            },
+            .num = 6,
+        }
+    );
+    // }}}
+    */
+
+    MetaLoader *ml = metaloader_new();
+    const char *fname = "typed.lua" ;
+    const char *fname_noext = extract_filename(fname, ".lua");
+    if (!metaloader_load_f(ml, fname)) {
+        printf("Could not load '%s' file\n", fname);
+    }
+
+    struct MetaLoaderObjects2 object = metaloader_objects_get2(ml, fname_noext);
+    for (int i = 0; i < object.num; ++i) {
+        printf(
+            "test_load_f_typed: %s - %s\n", object.names[i],
+            rect2str(object.rects[i])
+        );
+    }
+    metaloader_objects_shutdown2(&object);
+
+    metaloader_free(ml);
+    return MUNIT_OK;
+}
+
 
 static MunitResult test_load_f(
     const MunitParameter params[], void* data
@@ -409,6 +452,13 @@ static MunitTest test_suite_tests[] = {
         test_load_f,
         NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL
     },
+
+    {
+        (char*) "/load_f_typed",
+        test_load_f_typed,
+        NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL
+    },
+
 
     { NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL }
 };
