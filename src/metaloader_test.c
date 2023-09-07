@@ -208,11 +208,13 @@ static MunitResult test_load_f_typed(
 
     struct MetaLoaderObjects2 object = metaloader_objects_get2(ml, fname_noext);
     for (int i = 0; i < object.num; ++i) {
+        struct MetaLoaderObject2Str o2s;
+        o2s = metaloader_object2str(object.objs[i]);
         _printf(
-            "test_load_f_typed: %s\n", object.names[i],
-            metaloader_object2str(object.objs[i]).s
-            //rect2str(object.rects[i])
+           "test_load_f_typed: %s - %s\n", object.names[i], o2s.s
         );
+        if (o2s.is_allocated)
+            free((char*)o2s.s);
     }
     metaloader_objects_shutdown2(&object);
 
