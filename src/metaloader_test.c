@@ -17,6 +17,25 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "koh_logger.h"
+
+//#define DBG
+
+#ifdef DEBUG
+__attribute__((__format__ (__printf__, 1, 2)))
+static int _printf(const char *s, ...) {
+    va_list ap;
+    va_start(ap, s);
+    int ret = vprintf(s, ap); // warning
+    va_end(ap);
+    return ret;
+}
+#else
+static int _printf(const char *s, ...) {
+    (void)s;
+    return 0;
+}
+#endif
 
 static MunitResult test_new_free(
     const MunitParameter params[], void* data
@@ -38,15 +57,15 @@ static koh_Set *control_set_alloc(struct MetaLoaderObjects objs) {
 
     for (int i = 0; i < objs.num; ++i) {
         struct MetaObject mobject = {};
-        strncpy(mobject.name, objs.names[i], sizeof(mobject.name));
+        strncpy(mobject.name, objs.names[i], sizeof(mobject.name) - 1);
         mobject.rect = objs.rects[i];
-        printf(
+        _printf(
             "control_set_alloc: mobject '%s', %s\n",
             mobject.name, rect2str(mobject.rect)
         );
         set_add(set_control, &mobject, sizeof(mobject));
     }
-    printf("control_set_alloc: objs.num %d\n", objs.num);
+    _printf("control_set_alloc: objs.num %d\n", objs.num);
 
     return set_control;
 }
@@ -63,18 +82,18 @@ static koh_Set *meta_set_alloc(const char *fname, const char *luacode) {
     for (int j = 0; j < objects.num; ++j) {
         struct MetaObject mobject = {};
         if (objects.names[j])
-            strncpy(mobject.name, objects.names[j], sizeof(mobject.name));
+            strncpy(mobject.name, objects.names[j], sizeof(mobject.name) - 1);
         //mobject.name[1] = 's';
         //objects.rects[j].x += 0.00000000000000000001;
         //objects.rects[j].x += 0.01;
         mobject.rect = objects.rects[j];
         set_add(set_meta, &mobject, sizeof(mobject));
-        printf(
+        _printf(
             "meta_set_alloc: mobject '%s', %s\n",
             mobject.name, rect2str(mobject.rect)
         );
     }
-    printf("control_set_alloc: objs.num %d\n", objects.num);
+    _printf("control_set_alloc: objs.num %d\n", objects.num);
     metaloader_objects_shutdown(&objects);
     metaloader_free(ml);
     return set_meta;
@@ -92,18 +111,18 @@ static koh_Set *meta_set_alloc_f(const char *fname) {
     for (int j = 0; j < objects.num; ++j) {
         struct MetaObject mobject = {};
         if (objects.names[j])
-            strncpy(mobject.name, objects.names[j], sizeof(mobject.name));
+            strncpy(mobject.name, objects.names[j], sizeof(mobject.name) - 1);
         //mobject.name[1] = 's';
         //objects.rects[j].x += 0.00000000000000000001;
         //objects.rects[j].x += 0.01;
         mobject.rect = objects.rects[j];
         set_add(set_meta, &mobject, sizeof(mobject));
-        printf(
+        _printf(
             "meta_set_alloc: mobject '%s', %s\n",
             mobject.name, rect2str(mobject.rect)
         );
     }
-    printf("control_set_alloc: objs.num %d\n", objects.num);
+    _printf("control_set_alloc: objs.num %d\n", objects.num);
     metaloader_objects_shutdown(&objects);
     metaloader_free(ml);
     return set_meta;
@@ -184,14 +203,15 @@ static MunitResult test_load_f_typed(
     const char *fname = "typed.lua" ;
     const char *fname_noext = extract_filename(fname, ".lua");
     if (!metaloader_load_f(ml, fname)) {
-        printf("Could not load '%s' file\n", fname);
+        _printf("Could not load '%s' file\n", fname);
     }
 
     struct MetaLoaderObjects2 object = metaloader_objects_get2(ml, fname_noext);
     for (int i = 0; i < object.num; ++i) {
-        printf(
-            "test_load_f_typed: %s - %s\n", object.names[i],
-            rect2str(object.rects[i])
+        _printf(
+            "test_load_f_typed: %s\n", object.names[i],
+            metaloader_object2str(object.objs[i]).s
+            //rect2str(object.rects[i])
         );
     }
     metaloader_objects_shutdown2(&object);
@@ -468,5 +488,8 @@ static const MunitSuite test_suite = {
 };
 
 int main(int argc, char **argv) {
+#ifndef DEBUG
+    trace_enable(false);
+#endif
     return munit_suite_main(&test_suite, (void*) "µnit", argc, argv);
 }
