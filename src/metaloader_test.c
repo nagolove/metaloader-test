@@ -174,31 +174,212 @@ static MunitResult test_load_arr(
     return MUNIT_OK;
 }
 
+static MunitResult test_load_s_typed_by_type(
+    const MunitParameter params[], void* data
+) {
+
+    {
+        MetaLoader *ml = metaloader_new();
+        const char *code;
+
+        code = 
+            "return {\n"
+            "   wheel_100 = {\n"
+            "       type = \"rect\",\n"
+            "       rect = {0, 0, 100, 100,}\n"
+            "   },\n"
+            "}\n";
+
+        const char *fname_noext = "MSTA";
+        if (!metaloader_load_s(ml, "MSTA.lua", code)) {
+            _printf("Could not load code\n");
+        }
+
+        struct MetaLoaderReturn *o = metaloader_get2(
+            ml, fname_noext, "wheel_100"
+        );
+
+        munit_assert_not_null(o);
+        munit_assert(o->type == MLT_RECTANGLE);
+        const struct MetaLoaderRectangle *rect = (void*)o;
+        munit_assert(rect->rect.x == 0.);
+        munit_assert(rect->rect.y == 0.);
+        munit_assert(rect->rect.width == 100.);
+        munit_assert(rect->rect.height == 100.);
+        metaloader_free(ml);
+    }
+
+    {
+        MetaLoader *ml = metaloader_new();
+        const char *code;
+
+        code = 
+            "return {\n"
+            "    cabina = {\n"
+            "        type = \"rect_oriented\",\n"
+            "        rect = {\n"
+            "            0, 0, 100, 100,\n"
+            "        },\n"
+            "        angle = 10.,\n"
+            "    },\n"
+            "}\n";
+
+        const char *fname_noext = "MSTA";
+        if (!metaloader_load_s(ml, "MSTA.lua", code)) {
+            _printf("Could not load code\n");
+        }
+
+        struct MetaLoaderReturn *o = metaloader_get2(
+            ml, fname_noext, "cabina"
+        );
+        munit_assert_not_null(o);
+        munit_assert(o->type == MLT_RECTANGLE_ORIENTED);
+        const struct MetaLoaderRectangleOriented *or = (void*)o;
+        munit_assert(or->a == 10.);
+        munit_assert(or->rect.x == 0.);
+        munit_assert(or->rect.y == 0.);
+        munit_assert(or->rect.width == 100.);
+        munit_assert(or->rect.height == 100.);
+        metaloader_free(ml);
+    }
+
+    {
+        MetaLoader *ml = metaloader_new();
+        const char *code;
+
+        code = 
+            "return {\n"
+            "    detal = {\n"
+            "        type = \"polyline\",\n"
+            "        points = {\n"
+            "            5, -5,\n"
+            "            4, -4,\n"
+            "            3, -3,\n"
+            "            2, -2,\n"
+            "            1, -1,\n"
+            "            0, -0\n"
+            "        },\n"
+            "    },\n"
+            "}\n";
+
+        const char *fname_noext = "MSTA";
+        if (!metaloader_load_s(ml, "MSTA.lua", code)) {
+            _printf("Could not load code\n");
+        }
+
+        struct MetaLoaderReturn *o = metaloader_get2(
+            ml, fname_noext, "detal"
+        );
+        munit_assert_not_null(o);
+        munit_assert(o->type == MLT_POLYLINE);
+        const struct MetaLoaderPolyline *pl = (void*)o;
+        munit_assert(pl->num == 6);
+        munit_assert(pl->points[0].x == 5.);
+        munit_assert(pl->points[0].y == -5.);
+        munit_assert(pl->points[1].x == 4.);
+        munit_assert(pl->points[1].y == -4.);
+        munit_assert(pl->points[2].x == 3.);
+        munit_assert(pl->points[2].y == -3.);
+        munit_assert(pl->points[3].x == 2.);
+        munit_assert(pl->points[3].y == -2.);
+        munit_assert(pl->points[4].x == 1.);
+        munit_assert(pl->points[4].y == -1.);
+        munit_assert(pl->points[5].x == 0.);
+        munit_assert(pl->points[5].y == 0.);
+        metaloader_return_shutdown((void*)pl);
+        metaloader_free(ml);
+    }
+
+    {
+        MetaLoader *ml = metaloader_new();
+        const char *code;
+
+        code = 
+            "return {\n"
+            "   drugaya_detal = {\n"
+            "       type = \"sector\",\n"
+            "       radius = 100.,\n"
+            "       a1 = 0.,\n"
+            "       a2 = 3.1415,\n"
+            "    },\n"
+            "}\n";
+
+        const char *fname_noext = "MSTA";
+        if (!metaloader_load_s(ml, "MSTA.lua", code)) {
+            _printf("Could not load code\n");
+        }
+
+        struct MetaLoaderReturn *o = metaloader_get2(
+            ml, fname_noext, "drugaya_detal"
+        );
+        munit_assert_not_null(o);
+        munit_assert(o->type == MLT_SECTOR);
+        const struct MetaLoaderSector *sec = (void*)o;
+        munit_assert(sec->a1 == 0.);
+        munit_assert(sec->a2 - 3.1415 <= FLT_EPSILON);
+        munit_assert(sec->radius == 100.);
+        metaloader_return_shutdown((void*)sec);
+        metaloader_free(ml);
+    }
+
+    return MUNIT_OK;
+}
+
+static MunitResult test_load_s_typed(
+    const MunitParameter params[], void* data
+) {
+    MetaLoader *ml = metaloader_new();
+    const char *code;
+
+    code = 
+        "return {\n"
+        "    cabina = {\n"
+        "        type = \"rect_oriented\",\n"
+        "        rect = {\n"
+        "            0, 0, 100, 100,\n"
+        "        },\n"
+        "        angle = 10.,\n"
+        "    },\n"
+        "}\n";
+
+    const char *fname_noext = "MSTA";
+    if (!metaloader_load_s(ml, "MSTA.lua", code)) {
+        _printf("Could not load code\n");
+    }
+
+    {
+        struct MetaLoaderReturn *o = metaloader_get2(
+            ml, fname_noext, "cabina"
+        );
+        munit_assert_not_null(o);
+        munit_assert(o->type == MLT_RECTANGLE_ORIENTED);
+        const struct MetaLoaderRectangleOriented *or = (void*)o;
+        munit_assert(or->a == 10.);
+        munit_assert(or->rect.x == 0.);
+        munit_assert(or->rect.y == 0.);
+        munit_assert(or->rect.width == 100.);
+        munit_assert(or->rect.height == 100.);
+    }
+
+    struct MetaLoaderObjects2 object = metaloader_objects_get2(ml, fname_noext);
+    for (int i = 0; i < object.num; ++i) {
+        struct MetaLoaderObject2Str o2s;
+        o2s = metaloader_object2str(object.objs[i]);
+        _printf(
+           "test_load_f_typed: %s - %s\n", object.names[i], o2s.s
+        );
+        if (o2s.is_allocated)
+            free((char*)o2s.s);
+    }
+    metaloader_objects_shutdown2(&object);
+
+    metaloader_free(ml);
+    return MUNIT_OK;
+}
+
 static MunitResult test_load_f_typed(
     const MunitParameter params[], void* data
 ) {
-    /*
-    // {{{
-    load_f(
-        "example.lua", 
-        (struct MetaLoaderObjects) {
-            .names = { 
-                "wheel1", "mine"  , "wheel2", "wheel3", "wheel4", "wheel5", 
-            },
-            .rects = {
-                { 0, 0, 100, 100, },
-                { 2156, 264, 407, 418 },
-                { 2, 20, 43, 43, },
-                { 2000, 20, 43, 43, },
-                { -20, 20, 43, 43, },
-                { 0, 0, 0, 0},
-            },
-            .num = 6,
-        }
-    );
-    // }}}
-    */
-
     MetaLoader *ml = metaloader_new();
     const char *fname = "typed.lua" ;
     const char *fname_noext = extract_filename(fname, ".lua");
@@ -472,6 +653,18 @@ static MunitTest test_suite_tests[] = {
     {
         (char*) "/load_f",
         test_load_f,
+        NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL
+    },
+
+    {
+        (char*) "/load_s_typed_by_type",
+        test_load_s_typed_by_type,
+        NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL
+    },
+
+    {
+        (char*) "/load_s_typed",
+        test_load_s_typed,
         NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL
     },
 
