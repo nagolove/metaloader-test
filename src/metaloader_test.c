@@ -206,6 +206,8 @@ static MunitResult test_load_s_typed_by_type(
         munit_assert(rect->rect.y == 0.);
         munit_assert(rect->rect.width == 100.);
         munit_assert(rect->rect.height == 100.);
+        metaloader_return_shutdown(o);
+        free(o);
         metaloader_free(ml);
     }
 
@@ -240,7 +242,9 @@ static MunitResult test_load_s_typed_by_type(
         munit_assert(or->rect.y == 0.);
         munit_assert(or->rect.width == 100.);
         munit_assert(or->rect.height == 100.);
+        metaloader_return_shutdown(o);
         metaloader_free(ml);
+        free(o);
     }
 
     {
@@ -288,6 +292,7 @@ static MunitResult test_load_s_typed_by_type(
         munit_assert(pl->points[5].y == 0.);
         metaloader_return_shutdown((void*)pl);
         metaloader_free(ml);
+        free(o);
     }
 
     {
@@ -315,11 +320,12 @@ static MunitResult test_load_s_typed_by_type(
         munit_assert_not_null(o);
         munit_assert(o->type == MLT_SECTOR);
         const struct MetaLoaderSector *sec = (void*)o;
-        munit_assert(sec->a1 == 0.);
-        munit_assert(sec->a2 - 3.1415 <= FLT_EPSILON);
+        munit_assert(sec->angle1 == 0.);
+        munit_assert(sec->angle2 - 3.1415 <= FLT_EPSILON);
         munit_assert(sec->radius == 100.);
         metaloader_return_shutdown((void*)sec);
         metaloader_free(ml);
+        free(o);
     }
 
     return MUNIT_OK;
@@ -359,6 +365,8 @@ static MunitResult test_load_s_typed(
         munit_assert(or->rect.y == 0.);
         munit_assert(or->rect.width == 100.);
         munit_assert(or->rect.height == 100.);
+        metaloader_return_shutdown(o);
+        free(o);
     }
 
     struct MetaLoaderObjects2 object = metaloader_objects_get2(ml, fname_noext);
