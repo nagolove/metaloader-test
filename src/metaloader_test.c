@@ -21,7 +21,7 @@
 
 //#define DBG
 
-#ifdef DEBUG
+#ifdef TEST_DEBUG
 __attribute__((__format__ (__printf__, 1, 2)))
 static int _printf(const char *s, ...) {
     va_list ap;
@@ -37,10 +37,14 @@ static int _printf(const char *s, ...) {
 }
 #endif
 
+static const struct MetaLoaderSetup ml_setup = {
+    .verbose = false,
+};
+
 static MunitResult test_new_free(
     const MunitParameter params[], void* data
 ) {
-    MetaLoader *ml = metaloader_new();
+    MetaLoader *ml = metaloader_new(&ml_setup);
     metaloader_free(ml);
 
     return MUNIT_OK;
@@ -71,7 +75,7 @@ static koh_Set *control_set_alloc(struct MetaLoaderObjects objs) {
 }
 
 static koh_Set *meta_set_alloc(const char *fname, const char *luacode) {
-    MetaLoader *ml = metaloader_new();
+    MetaLoader *ml = metaloader_new(&ml_setup);
     munit_assert(ml != NULL);
     munit_assert_true(metaloader_load_s(ml, fname, luacode));
 
@@ -100,7 +104,7 @@ static koh_Set *meta_set_alloc(const char *fname, const char *luacode) {
 }
 
 static koh_Set *meta_set_alloc_f(const char *fname) {
-    MetaLoader *ml = metaloader_new();
+    MetaLoader *ml = metaloader_new(&ml_setup);
     munit_assert(ml != NULL);
     munit_assert_true(metaloader_load_f(ml, fname));
 
@@ -179,7 +183,7 @@ static MunitResult test_load_s_typed_by_type(
 ) {
 
     {
-        MetaLoader *ml = metaloader_new();
+        MetaLoader *ml = metaloader_new(&ml_setup);
         const char *code;
 
         code = 
@@ -212,7 +216,7 @@ static MunitResult test_load_s_typed_by_type(
     }
 
     {
-        MetaLoader *ml = metaloader_new();
+        MetaLoader *ml = metaloader_new(&ml_setup);
         const char *code;
 
         code = 
@@ -248,7 +252,7 @@ static MunitResult test_load_s_typed_by_type(
     }
 
     {
-        MetaLoader *ml = metaloader_new();
+        MetaLoader *ml = metaloader_new(&ml_setup);
         const char *code;
 
         code = 
@@ -296,7 +300,7 @@ static MunitResult test_load_s_typed_by_type(
     }
 
     {
-        MetaLoader *ml = metaloader_new();
+        MetaLoader *ml = metaloader_new(&ml_setup);
         const char *code;
 
         code = 
@@ -334,7 +338,7 @@ static MunitResult test_load_s_typed_by_type(
 static MunitResult test_load_s_typed(
     const MunitParameter params[], void* data
 ) {
-    MetaLoader *ml = metaloader_new();
+    MetaLoader *ml = metaloader_new(&ml_setup);
     const char *code;
 
     code = 
@@ -388,7 +392,7 @@ static MunitResult test_load_s_typed(
 static MunitResult test_load_f_typed(
     const MunitParameter params[], void* data
 ) {
-    MetaLoader *ml = metaloader_new();
+    MetaLoader *ml = metaloader_new(&ml_setup);
     const char *fname = "typed.lua" ;
     const char *fname_noext = extract_filename(fname, ".lua");
     if (!metaloader_load_f(ml, fname)) {
@@ -471,7 +475,7 @@ static MunitResult test_load_mixed(
 }
 
 static void _get(const char *fname, const char *luacode, struct MetaLoaderObjects objects_control) {
-    struct MetaLoader *ml = metaloader_new();
+    struct MetaLoader *ml = metaloader_new(&ml_setup);
     const char *fname_noext = extract_filename(fname, ".lua");
     //munit_assert_string_equal(fname_noext, fname_only_name);
     munit_assert_true(metaloader_load_s(ml, fname, luacode));
